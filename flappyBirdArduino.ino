@@ -1,0 +1,241 @@
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
+#include <SPI.h>
+
+#define TFT_CS    10
+#define TFT_RST   9
+#define TFT_DC    8
+#define BUTTON_PIN 2
+
+Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
+
+#define SCREEN_WIDTH  240
+#define SCREEN_HEIGHT 280
+
+#define GRAVITY       0.3
+#define JUMP_FORCE    -4.0
+#define PIPE_SPEED    2
+#define PIPE_GAP      50
+#define PIPE_WIDTH    20
+#define FLOOR_HEIGHT  20
+
+#define BIRD_WIDTH    16
+#define BIRD_HEIGHT   12
+
+#define COLOR_BG      tft.color565(135, 206, 235)
+#define COLOR_FLOOR   tft.color565(139, 69, 19)
+#define COLOR_PIPE    tft.color565(0, 255, 0)
+#define COLOR_TEXT    tft.color565(255, 255, 255)
+#define COLOR_YELLOW  tft.color565(255, 255, 0)
+#define COLOR_WHITE   tft.color565(255, 255, 255)
+#define COLOR_BLACK   tft.color565(0, 0, 0)
+#define COLOR_ORANGE  tft.color565(255, 165, 0)
+
+static const uint16_t birdUp[BIRD_HEIGHT][BIRD_WIDTH] = {
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_WHITE, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BLACK, COLOR_ORANGE, COLOR_ORANGE, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_WHITE, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BG, COLOR_BLACK, COLOR_ORANGE, COLOR_ORANGE, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG}
+};
+
+static const uint16_t birdDown[BIRD_HEIGHT][BIRD_WIDTH] = {
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BLACK, COLOR_ORANGE, COLOR_ORANGE, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_WHITE, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BG, COLOR_BLACK, COLOR_ORANGE, COLOR_ORANGE, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_WHITE, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG},
+  {COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BG, COLOR_BLACK, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK, COLOR_BG, COLOR_BG, COLOR_BG}
+};
+
+struct Bird {
+  int x, y, old_y;
+  float velocity;
+  bool flap;
+} bird;
+
+struct Pipe {
+  int x, old_x;
+  int gap_y;
+} pipe;
+
+int score = 0;
+
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  tft.init(SCREEN_WIDTH, SCREEN_HEIGHT);
+  tft.setRotation(2);
+  tft.fillScreen(COLOR_BG);
+  draw_floor();
+  Serial.begin(9600);
+}
+
+void loop() {
+  show_start_screen();
+  game_loop();
+  show_game_over_screen();
+}
+
+bool isButtonPressed() {
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    delay(20);
+    if (digitalRead(BUTTON_PIN) == LOW) return true;
+  }
+  return false;
+}
+
+void game_loop() {
+  bird.x = 50;
+  bird.y = bird.old_y = SCREEN_HEIGHT / 2;
+  bird.velocity = 0;
+  bird.flap = false;
+  pipe.x = pipe.old_x = SCREEN_WIDTH;
+  pipe.gap_y = random(50, SCREEN_HEIGHT - FLOOR_HEIGHT - PIPE_GAP - 50);
+  score = 0;
+
+  tft.fillScreen(COLOR_BG);
+  draw_floor();
+  draw_score();
+
+  while (true) {
+    bird.velocity += GRAVITY;
+    bird.y += bird.velocity;
+
+    if (isButtonPressed()) {
+      bird.velocity = JUMP_FORCE;
+      bird.flap = true;
+    } else {
+      bird.flap = false;
+    }
+
+    pipe.x -= PIPE_SPEED;
+    if (pipe.x < -PIPE_WIDTH) {
+      pipe.x = SCREEN_WIDTH;
+      pipe.gap_y = random(50, SCREEN_HEIGHT - FLOOR_HEIGHT - PIPE_GAP - 50);
+    }
+
+    clear_bird();
+    draw_bird();
+    clear_pipe();
+    draw_pipe();
+    update_score();
+
+    if (check_collision()) {
+      break;
+    }
+
+    if (pipe.x + PIPE_WIDTH < bird.x && pipe.old_x + PIPE_WIDTH >= bird.x) {
+      score++;
+    }
+
+    pipe.old_x = pipe.x;
+    bird.old_y = bird.y;
+
+    delay(10);
+  }
+}
+
+void draw_bird() {
+  const uint16_t (*sprite)[BIRD_WIDTH] = bird.flap ? birdUp : birdDown;
+  for (int y = 0; y < BIRD_HEIGHT; y++) {
+    for (int x = 0; x < BIRD_WIDTH; x++) {
+      if (sprite[y][x] != COLOR_BG) {
+        tft.drawPixel(bird.x + x, bird.y + y, sprite[y][x]);
+      }
+    }
+  }
+}
+
+void clear_bird() {
+  tft.fillRect(bird.x, bird.old_y, BIRD_WIDTH, BIRD_HEIGHT, COLOR_BG);
+}
+
+void draw_pipe() {
+  tft.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.gap_y, COLOR_PIPE);
+  tft.fillRect(pipe.x, pipe.gap_y + PIPE_GAP, PIPE_WIDTH, SCREEN_HEIGHT - FLOOR_HEIGHT - (pipe.gap_y + PIPE_GAP), COLOR_PIPE);
+}
+
+void clear_pipe() {
+  if (pipe.old_x > pipe.x) {
+    tft.fillRect(pipe.old_x + PIPE_WIDTH, 0, PIPE_SPEED, pipe.gap_y, COLOR_BG);
+    tft.fillRect(pipe.old_x + PIPE_WIDTH, pipe.gap_y + PIPE_GAP, PIPE_SPEED, SCREEN_HEIGHT - FLOOR_HEIGHT - (pipe.gap_y + PIPE_GAP), COLOR_BG);
+  }
+}
+
+void draw_floor() {
+  tft.fillRect(0, SCREEN_HEIGHT - FLOOR_HEIGHT, SCREEN_WIDTH, FLOOR_HEIGHT, COLOR_FLOOR);
+}
+
+void draw_score() {
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(2);
+  tft.setCursor(SCREEN_WIDTH / 2 - 10, 10);
+  tft.print(score);
+}
+
+void update_score() {
+  tft.setTextColor(COLOR_BG);
+  tft.setCursor(SCREEN_WIDTH / 2 - 10, 10);
+  tft.print(score - 1 < 0 ? 0 : score - 1);
+  tft.setTextColor(COLOR_TEXT);
+  tft.setCursor(SCREEN_WIDTH / 2 - 10, 10);
+  tft.print(score);
+}
+
+bool check_collision() {
+  if (bird.y + BIRD_HEIGHT > SCREEN_HEIGHT - FLOOR_HEIGHT || bird.y < 0) {
+    return true;
+  }
+  if (bird.x + BIRD_WIDTH > pipe.x && bird.x < pipe.x + PIPE_WIDTH) {
+    if (bird.y < pipe.gap_y || bird.y + BIRD_HEIGHT > pipe.gap_y + PIPE_GAP) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void show_start_screen() {
+  tft.fillScreen(COLOR_BG);
+  draw_floor();
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(3);
+  tft.setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 20);
+  tft.println("FLAPPY");
+  tft.setCursor(SCREEN_WIDTH / 2 - 30, SCREEN_HEIGHT / 2 + 10);
+  tft.println("BIRD");
+  tft.setTextSize(1);
+  tft.setCursor(SCREEN_WIDTH / 2 - 40, SCREEN_HEIGHT / 2 + 40);
+  tft.println("Press to Start");
+
+  while (!isButtonPressed());
+}
+
+void show_game_over_screen() {
+  tft.fillScreen(COLOR_BG);
+  draw_floor();
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(2);
+  tft.setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 20);
+  tft.println("GAME OVER");
+  tft.setTextSize(1);
+  tft.setCursor(SCREEN_WIDTH / 2 - 30, SCREEN_HEIGHT / 2 + 10);
+  tft.print("Score: ");
+  tft.print(score);
+  tft.setCursor(SCREEN_WIDTH / 2 - 40, SCREEN_HEIGHT / 2 + 30);
+  tft.println("Press to Restart");
+
+  while (!isButtonPressed());
+}
