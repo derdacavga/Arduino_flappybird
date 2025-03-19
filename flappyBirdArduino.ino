@@ -5,6 +5,8 @@
 #define TFT_CS    10
 #define TFT_RST   9
 #define TFT_DC    8
+//SDA 11
+//SCL 13
 #define BUTTON_PIN 2
 
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
