@@ -18,9 +18,11 @@ Res   9
 Dc    8
 Cs   10
 
-Resources:
+## Tutorial
 
-Video Link : https://youtu.be/v74sV8A4y48
+[![V2](https://img.youtube.com/vi/v74sV8A4y48/0.jpg)](https://youtu.be/v74sV8A4y48)
+
+Resources: 
 Libraries Needed: [Adafruit_GFX, Adafruit_ST7789 (Install via Arduino Library Manager)](https://github.com/adafruit/Adafruit-ST7735-Library/tree/master)
 
 Tools & Materials:
